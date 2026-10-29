@@ -1,1 +1,1098 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zippee WiFi Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<style>
+:root{
+  --bg:#f4f6fa; --panel:#fff; --ink:#151b2b; --muted:#667085; --line:#e4e7ec; --soft:#f9fafb;
+  --brand:#4f46e5; --brand-soft:#eef2ff; --side:#121826; --side-ink:#c9cfdc;
+  --ok:#12b76a; --ok-soft:#e8f8f0; --warn:#f79009; --warn-soft:#fff6e6; --bad:#f04438; --bad-soft:#fef0ef;
+  --info:#2e90fa; --info-soft:#eaf4ff; --grey-soft:#f2f4f7;
+  --r:12px; --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--brand)}
+.hidden{display:none!important}
+
+/* ---------- login ---------- */
+#login{min-height:100%;display:grid;place-items:center;padding:16px;background:linear-gradient(135deg,#121826,#312e81)}
+.login-card{background:#fff;border-radius:16px;padding:32px;width:100%;max-width:380px;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+.login-card h1{margin:0 0 4px;font-size:22px}
+.login-card p{margin:0 0 20px;color:var(--muted)}
+
+/* ---------- layout ---------- */
+#app{display:flex;min-height:100%}
+aside{width:228px;background:var(--side);color:var(--side-ink);flex-shrink:0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.logo{padding:20px 18px;font-weight:700;color:#fff;font-size:16px;display:flex;gap:10px;align-items:center}
+.logo .dot{width:30px;height:30px;border-radius:8px;background:var(--brand);display:grid;place-items:center;font-size:16px}
+nav a{display:flex;align-items:center;gap:10px;padding:10px 18px;color:var(--side-ink);text-decoration:none;border-left:3px solid transparent;cursor:pointer}
+nav a:hover{background:rgba(255,255,255,.05);color:#fff}
+nav a.active{background:rgba(79,70,229,.18);color:#fff;border-left-color:var(--brand)}
+nav a .ic{width:18px;text-align:center}
+nav a .cnt{margin-left:auto;background:var(--bad);color:#fff;border-radius:10px;font-size:11px;padding:1px 7px}
+.side-foot{margin-top:auto;padding:14px 18px;font-size:12px;border-top:1px solid rgba(255,255,255,.08)}
+.side-foot button{background:none;border:1px solid rgba(255,255,255,.2);color:var(--side-ink);border-radius:8px;padding:5px 10px;cursor:pointer;margin-top:8px}
+main{flex:1;min-width:0;padding:22px 26px 60px}
+.topbar{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.topbar h2{margin:0;font-size:21px;flex:1;min-width:180px}
+.menu-btn{display:none}
+
+/* ---------- filters ---------- */
+.filters{display:flex;gap:8px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:10px;margin-bottom:16px;box-shadow:var(--shadow);align-items:center}
+.filters select,.filters input{border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:#fff;min-width:130px}
+.filters .lbl{font-size:12px;color:var(--muted);font-weight:600;margin-right:2px}
+
+/* ---------- components ---------- */
+.btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{background:var(--soft)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.danger{color:var(--bad);border-color:#fecdca}
+.btn.sm{padding:4px 9px;font-size:12px;border-radius:6px}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.card-h{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.card-h h3{margin:0;font-size:15px;flex:1}
+.card-b{padding:16px}
+.grid{display:grid;gap:16px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.kpi{padding:16px}
+.kpi .k{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+.kpi .v{font-size:28px;font-weight:700;margin-top:6px}
+.kpi .s{font-size:12px;color:var(--muted);margin-top:2px}
+.kpi.bad .v{color:var(--bad)} .kpi.warn .v{color:var(--warn)} .kpi.ok .v{color:var(--ok)}
+.charts{grid-template-columns:repeat(auto-fit,minmax(420px,1fr))}
+.chart-box{position:relative;height:280px}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.b-ok{background:var(--ok-soft);color:#027a48}.b-warn{background:var(--warn-soft);color:#b54708}
+.b-bad{background:var(--bad-soft);color:#b42318}.b-info{background:var(--info-soft);color:#175cd3}
+.b-grey{background:var(--grey-soft);color:#475467}.b-brand{background:var(--brand-soft);color:#3730a3}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--muted);font-weight:600;background:var(--soft);position:sticky;top:0;z-index:1;white-space:nowrap}
+tr:hover td{background:#fafbff}
+.tbl-wrap{overflow:auto;max-height:68vh}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)} .small{font-size:12px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+.cred{display:inline-flex;align-items:center;gap:4px}
+.icon-btn{border:none;background:none;cursor:pointer;padding:2px 4px;border-radius:4px;color:var(--muted)}
+.icon-btn:hover{background:var(--grey-soft);color:var(--ink)}
+.empty{padding:40px;text-align:center;color:var(--muted)}
+.row-actions{display:flex;gap:4px;flex-wrap:wrap}
+.tabs{display:flex;gap:4px;margin-bottom:14px;flex-wrap:wrap}
+.tabs button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 14px;cursor:pointer}
+.tabs button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+/* store cards */
+.stores-grid{grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}
+.store-card{padding:14px;cursor:pointer;transition:.15s}
+.store-card:hover{border-color:var(--brand);transform:translateY(-1px)}
+.store-card .t{font-weight:600;font-size:15px}
+.store-card .m{color:var(--muted);font-size:12px;margin:2px 0 10px}
+.wifi-pills{display:flex;gap:6px;flex-wrap:wrap}
+.wifi-pill{font-size:12px;border:1px solid var(--line);border-radius:6px;padding:3px 7px;background:var(--soft)}
+.wifi-pill.bad{border-color:#fecdca;background:var(--bad-soft)}
+.wifi-pill.warn{border-color:#fedf89;background:var(--warn-soft)}
+
+/* connection cards in drawer */
+.conn{border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+.conn-h{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.conn-h .isp{font-weight:700;font-size:15px}
+.kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px 16px}
+.kv div .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;font-weight:600}
+.kv div .x{margin-top:2px;word-break:break-word}
+
+/* drawer & modal */
+.overlay{position:fixed;inset:0;background:rgba(16,24,40,.45);z-index:50;display:flex;justify-content:flex-end}
+.drawer{background:var(--bg);width:min(860px,100%);height:100%;overflow:auto;box-shadow:-10px 0 30px rgba(0,0,0,.2)}
+.drawer-h{position:sticky;top:0;background:var(--panel);border-bottom:1px solid var(--line);padding:16px 20px;display:flex;gap:10px;align-items:center;z-index:2;flex-wrap:wrap}
+.drawer-h h3{margin:0;flex:1;font-size:18px;min-width:160px}
+.drawer-b{padding:20px}
+.modal-wrap{position:fixed;inset:0;background:rgba(16,24,40,.5);z-index:60;display:grid;place-items:center;padding:16px}
+.modal{background:#fff;border-radius:14px;width:min(720px,100%);max-height:92vh;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+.modal-h{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center}
+.modal-h h3{margin:0;flex:1;font-size:17px}
+.modal-b{padding:18px 20px;overflow:auto}
+.modal-f{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
+.form .full{grid-column:1/-1}
+.form label{display:block;font-size:12px;font-weight:600;color:#344054;margin-bottom:4px}
+.form input,.form select,.form textarea,.login-card input{width:100%;border:1px solid #d0d5dd;border-radius:8px;padding:8px 10px;background:#fff}
+.form textarea{min-height:64px;resize:vertical}
+.form input:focus,.form select:focus,.form textarea:focus{outline:2px solid #c7d2fe;border-color:var(--brand)}
+.form .hint{font-size:11px;color:var(--muted);margin-top:3px}
+.form h4{grid-column:1/-1;margin:8px 0 0;font-size:13px;color:var(--brand);border-bottom:1px solid var(--line);padding-bottom:4px}
+.checklist{border:1px solid #d0d5dd;border-radius:8px;max-height:200px;overflow:auto;padding:6px}
+.checklist label{display:flex;gap:8px;align-items:center;font-weight:400;padding:3px 4px;margin:0;font-size:13px}
+.checklist label input{width:auto}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:10px;z-index:99;box-shadow:var(--shadow)}
+.toast.err{background:var(--bad)}
+.loading{position:fixed;inset:0;display:grid;place-items:center;background:rgba(255,255,255,.6);z-index:90;font-weight:600}
+.split{display:flex;gap:16px;flex-wrap:wrap}
+.split>*{flex:1;min-width:280px}
+.pw{letter-spacing:.1em}
+
+@media (max-width: 900px){
+  aside{position:fixed;left:-240px;z-index:40;transition:.2s}
+  aside.open{left:0}
+  .menu-btn{display:inline-flex}
+  main{padding:16px}
+  .charts{grid-template-columns:1fr}
+  .form{grid-template-columns:1fr}
+  .filters select,.filters input{min-width:0;flex:1 1 140px}
+}
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<section id="login" class="hidden">
+  <form class="login-card" id="loginForm">
+    <h1>📶 Zippee WiFi Manager</h1>
+    <p>Sign in with your team account</p>
+    <div class="form" style="grid-template-columns:1fr">
+      <div><label>Email</label><input id="loginEmail" type="email" required autocomplete="username"></div>
+      <div><label>Password</label><input id="loginPass" type="password" required autocomplete="current-password"></div>
+      <button class="btn primary" style="justify-content:center" type="submit">Sign in</button>
+      <div id="loginErr" class="small" style="color:var(--bad)"></div>
+    </div>
+  </form>
+</section>
+
+<!-- ================= APP ================= -->
+<div id="app" class="hidden">
+  <aside id="side">
+    <div class="logo"><span class="dot">📶</span> WiFi Manager</div>
+    <nav id="nav"></nav>
+    <div class="side-foot"><div id="whoami"></div><button id="logoutBtn">Sign out</button></div>
+  </aside>
+  <main>
+    <div class="topbar">
+      <button class="btn menu-btn" onclick="document.getElementById('side').classList.toggle('open')">☰</button>
+      <h2 id="pageTitle">Dashboard</h2>
+      <div id="pageActions" class="row-actions"></div>
+    </div>
+    <div class="filters" id="filters"></div>
+    <div id="page"></div>
+  </main>
+</div>
+
+<div id="overlayRoot"></div>
+<div id="modalRoot"></div>
+
+<script>
+/* =====================================================================
+   1) CONFIG — paste your Supabase project URL and anon (public) key
+   ===================================================================== */
+const SUPABASE_URL      = 'https://amlmthmhswcsgxsbuhxe.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFtbG10aG1oc3djc2d4c2J1aHhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3ODE4MzIsImV4cCI6MjA4ODM1NzgzMn0.k4u6EJAzTjzQqXA107KyiYyiMu7Jw1fMufJ8nrO8O-A';
+const DUE_SOON_DAYS     = 3;      // same threshold as the Apps Script alert
+const TZ                = 'Asia/Kolkata';
+</script>
+<script>
+/* =====================================================================
+   Zippee WiFi Manager — app logic
+   ===================================================================== */
+// tolerate stray spaces, quotes or a trailing slash pasted into the config
+const SB_URL = String(SUPABASE_URL).trim().replace(/^['"]|['"]$/g, '').replace(/\/+$/, '');
+const SB_KEY = String(SUPABASE_ANON_KEY).trim().replace(/^['"]|['"]$/g, '').replace(/\s+/g, '');
+const sb = supabase.createClient(SB_URL, SB_KEY);
+
+/* ---------------- constants ---------------- */
+const LOGIN_METHODS = {
+  userid_password: 'User ID + Password',
+  phone_otp:       'Registered mobile + OTP',
+  account_number:  'Account / DSL ID + Password',
+  email_password:  'Email + Password',
+  portal_other:    'Other (see notes)'
+};
+const CONN_STATUS = {
+  active:               ['Active', 'b-ok'],
+  suspended:            ['Suspended', 'b-warn'],
+  disconnect_requested: ['Disconnect requested', 'b-warn'],
+  disconnected:         ['Disconnected', 'b-grey'],
+  shift_requested:      ['Shift requested', 'b-info'],
+  inactive:             ['Inactive', 'b-grey']
+};
+const STORE_STATUS = { active: ['Active','b-ok'], inactive: ['Inactive','b-grey'], closed: ['Closed','b-bad'] };
+const PAYMENT_TYPES = ['Recharge','New Installation','Installation + Recharge','Shifting','Data Add On','Top Up','Due Clearance','Data Recharge','Security Deposit','Other'];
+const EQUIP_LOCATIONS = ['At store','In storage / warehouse','With person','Handed to ISP','Lost / Damaged'];
+const EQUIP_ITEMS = ['Router','ONT / Modem','Power adapter','LAN cable','Extender / Mesh','Other'];
+const EVENT_LABELS = {
+  disconnect_requested: 'Disconnection requested', disconnected: 'Disconnected',
+  shift_requested: 'Shifting requested', shifted: 'Shifted', reconnected: 'Reconnected / reactivated', note: 'Note'
+};
+
+/* ---------------- brand / city auto-detect (ported from your Apps Script) ---------------- */
+const BRAND_MAP = {"MT":"Myntra","FNP":"FNP","ZL":"Zilo","VA":"Varee","VR":"Varee","FKM":"FKM","FKG":"FKG","CLK":"CLK","SRT":"SRT","TGS":"TGS","PTR":"PTR","SDD":"SDD","CC":"CC","ST":"ST","HK":"Healthkart","HQ":"Zippee","HLD":"HLD","MFC":"MFC","HY":"Zippee","Libas":"Libas","Epik":"Epik","H&S":"H&S","2":"Zippee","TMZ":"TMZ","AMZ":"Amazon","OZI":"Ozi","RXP":"Rxpress","HUFT":"HUFT"};
+const CITY_MAP = {"malad":"Mumbai","navi mumbai":"Mumbai","marol":"Mumbai","lamington":"Mumbai","airoli":"Mumbai","andheri":"Mumbai","matunga":"Mumbai","borivali":"Mumbai","lower parel":"Mumbai","thane":"Mumbai","kharghar":"Mumbai","mira road":"Mumbai","ghatkopar":"Mumbai","penthouse":"Mumbai","chakala":"Mumbai","mumbai":"Mumbai","chembur":"Mumbai","vashi":"Mumbai","colaba":"Mumbai","bkc":"Mumbai","powai":"Mumbai","seawood":"Mumbai","kandivali":"Mumbai","yerawada":"Pune","vadgaon":"Pune","viman nagar":"Pune","pune":"Pune","gachibowli":"Hyderabad","nizampet":"Hyderabad","attapur":"Hyderabad","manikonda":"Hyderabad","nampally":"Hyderabad","hafeezpet":"Hyderabad","yelankha":"Bengaluru","banashankari":"Bengaluru","brookfield":"Bengaluru","begur":"Bengaluru","thyagraj":"Bengaluru","horamavu":"Bengaluru","kempapura":"Bengaluru","jakkur":"Bengaluru","jp nagar":"Bengaluru","hulimavu":"Bengaluru","holimavu":"Bengaluru","sarjapur":"Bengaluru","kalyan":"Bengaluru","basaveshwara":"Bengaluru","basaweshwara":"Bengaluru","koramangala":"Bengaluru","thipasandara":"Bengaluru","varthur":"Bengaluru","btm":"Bengaluru","electronic city":"Bengaluru","bommasandra":"Bengaluru","frazer town":"Bengaluru","yashwantpur":"Bengaluru","whitefield":"Bengaluru","bommanhalli":"Bengaluru","banaswadi":"Bengaluru","marathalli":"Bengaluru","rt nagar":"Bengaluru","hebbal":"Bengaluru","kr puram":"Bengaluru","vasant nagar":"Bengaluru","singsandra":"Bengaluru","kumarswamy":"Bengaluru","blr":"Bengaluru","dilshad garden":"Delhi NCR","janakpuri":"Delhi NCR","okhla":"Delhi NCR","shahpurjat":"Delhi NCR","noida":"Delhi NCR","ggn":"Delhi NCR","gurgaon":"Delhi NCR","dlf":"Delhi NCR","ghitorni":"Delhi NCR","wazirpur":"Delhi NCR","ashok vihar":"Delhi NCR","badsahpur":"Delhi NCR","satyaniketan":"Delhi NCR","lajpat":"Delhi NCR","model town":"Delhi NCR","rajouri":"Delhi NCR","karol bagh":"Delhi NCR","dwarka":"Delhi NCR","kalkaji":"Delhi NCR","faridabad":"Delhi NCR","periyamet":"Chennai","behala":"Kolkata","topsia":"Kolkata","nashik":"Nashik","nasik":"Nashik","nanpur":"Moradabad","moradabad":"Moradabad","ludhiana":"Ludhiana","jhansi road":"Ludhiana","dehradun":"Dehradun","harmada":"Jaipur","kalmaserry":"Kerala","kulathoor":"Kerala","palluruthy":"Kerala","ayyanthole":"Kerala","chembukav":"Kerala","pattom":"Kerala","palarivattom":"Kerala","poojapura":"Kerala","vadodara":"Vadodara"};
+function detectBrand(name){
+  const s = String(name||'').trim(); if(!s) return '';
+  const after = s.replace(/^ZD\s+/i,''); if(after === s) return 'Zippee';
+  for (const code of Object.keys(BRAND_MAP)){
+    if (after.substring(0,code.length).toUpperCase() === code.toUpperCase()){
+      const nx = after.charAt(code.length); if (nx === '' || nx === ' ') return BRAND_MAP[code];
+    }
+  }
+  return 'Zippee';
+}
+function detectCity(name){
+  const s = String(name||'').toLowerCase();
+  for (const k of Object.keys(CITY_MAP).sort((a,b)=>b.length-a.length)) if (s.includes(k)) return CITY_MAP[k];
+  return '';
+}
+
+/* ---------------- state ---------------- */
+const S = {
+  user: null, page: 'dashboard',
+  stores: [], conns: [], payments: [], equipment: [], events: [], isps: [], methods: [],
+  f: { brand:'', city:'', store:'', isp:'', status:'active', q:'' },
+  charts: [], tab: {}, recon: null
+};
+
+/* ---------------- utils ---------------- */
+const $ = s => document.querySelector(s);
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const inr = v => v == null || v === '' ? '—' : '₹' + Number(v).toLocaleString('en-IN', {maximumFractionDigits: 0});
+const todayISO = () => new Intl.DateTimeFormat('en-CA', {timeZone: TZ}).format(new Date());
+const parseISO = s => { const [y,m,d] = s.split('-').map(Number); return Date.UTC(y, m-1, d); };
+const daysBetween = (a, b) => Math.round((parseISO(b) - parseISO(a)) / 86400000);
+const fmtD = s => s ? s.split('-').reverse().join('-') : '—';
+const fmtDot = s => s ? s.split('-').reverse().join('.') : '';
+const addMonths = (iso, m) => { const [y,mo,d] = iso.split('-').map(Number); const t = new Date(Date.UTC(y, mo-1+m, 1));
+  const last = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth()+1, 0)).getUTCDate();
+  t.setUTCDate(Math.min(d, last)); return t.toISOString().slice(0,10); };
+const uniq = a => [...new Set(a.filter(x => x != null && x !== ''))].sort((x,y)=>String(x).localeCompare(String(y)));
+const byId = (arr, id) => arr.find(x => x.id === id);
+function toast(msg, err){ const t = document.createElement('div'); t.className = 'toast' + (err?' err':''); t.textContent = msg;
+  document.body.appendChild(t); setTimeout(()=>t.remove(), err ? 5000 : 2500); }
+function loading(on){ let el = $('#loadingEl'); if(on && !el){ el = document.createElement('div'); el.id='loadingEl'; el.className='loading'; el.textContent='Loading…'; document.body.appendChild(el);} if(!on && el) el.remove(); }
+function badge(map, k){ const v = map[k] || [k, 'b-grey']; return `<span class="badge ${v[1]}">${esc(v[0])}</span>`; }
+
+/* due status for a connection */
+function dueInfo(c){
+  if (!c.next_due) return { state:'none', days:null, html:'<span class="badge b-grey">No tenure set</span>' };
+  const days = daysBetween(todayISO(), c.next_due);
+  if (days < 0)  return { state:'overdue', days, html:`<span class="badge b-bad">Overdue ${-days}d</span>` };
+  if (days <= DUE_SOON_DAYS) return { state:'soon', days, html:`<span class="badge b-warn">${days===0?'Due today':'Due in '+days+'d'}</span>` };
+  return { state:'ok', days, html:`<span class="badge b-ok">${days}d left</span>` };
+}
+const isLive = c => ['active','suspended','shift_requested'].includes(c.status);
+
+/* ---------------- data ---------------- */
+async function fetchAll(table, order){
+  const out = []; const size = 1000;
+  for (let from = 0; ; from += size){
+    let q = sb.from(table).select('*').range(from, from + size - 1);
+    if (order) q = q.order(order[0], {ascending: order[1]});
+    const { data, error } = await q; if (error) throw error;
+    out.push(...data); if (data.length < size) break;
+  }
+  return out;
+}
+async function loadAll(){
+  loading(true);
+  try{
+    const [stores, conns, payments, equipment, events, isps, methods] = await Promise.all([
+      fetchAll('wifi_stores', ['name', true]), fetchAll('wifi_v_connections', ['id', true]),
+      fetchAll('wifi_payments', ['payment_date', false]), fetchAll('wifi_equipment', ['id', true]),
+      fetchAll('wifi_connection_events', ['event_date', false]), fetchAll('wifi_isps', ['name', true]),
+      fetchAll('wifi_payment_methods', ['sort_order', true])]);
+    Object.assign(S, {stores, conns, payments, equipment, events, isps, methods});
+  } catch(e){ toast('Load failed: ' + e.message, true); console.error(e); }
+  loading(false);
+}
+async function dbWrite(promise, okMsg){
+  const { data, error } = await promise;
+  if (error){ toast(error.message, true); throw error; }
+  if (okMsg) toast(okMsg);
+  return data;
+}
+async function refresh(){ await loadAll(); render(); }
+
+/* ---------------- filters ---------------- */
+function storeOf(c){ return byId(S.stores, c.store_id) || {}; }
+function connPass(c, f = S.f){
+  if (f.brand && c.brand !== f.brand) return false;
+  if (f.city && c.city !== f.city) return false;
+  if (f.store && String(c.store_id) !== f.store) return false;
+  if (f.isp && c.isp !== f.isp) return false;
+  if (f.status === 'active' && !isLive(c)) return false;
+  if (f.status && f.status !== 'active' && f.status !== 'all' && c.status !== f.status) return false;
+  if (f.q){
+    const hay = [c.store_name, c.isp, c.account_no, c.login_id, c.registered_phone, c.registered_name, c.registered_email, c.label, c.notes].join(' ').toLowerCase();
+    if (!hay.includes(f.q.toLowerCase())) return false;
+  }
+  return true;
+}
+function storePass(s, f = S.f){
+  if (f.brand && s.brand !== f.brand) return false;
+  if (f.city && s.city !== f.city) return false;
+  if (f.store && String(s.id) !== f.store) return false;
+  if (f.q && !(s.name + ' ' + (s.address||'')).toLowerCase().includes(f.q.toLowerCase())
+      && !S.conns.some(c => c.store_id === s.id && connPass(c, {q: f.q, status: 'all'}))) return false;
+  if (f.isp && !S.conns.some(c => c.store_id === s.id && c.isp === f.isp)) return false;
+  return true;
+}
+function paymentStore(p){ return byId(S.stores, p.store_id) || (p.connection_id ? storeOf(byId(S.conns, p.connection_id) || {}) : {}); }
+function paymentPass(p, f = S.f){
+  const st = paymentStore(p); const c = byId(S.conns, p.connection_id);
+  const brand = p.brand || st.brand || 'Zippee';
+  if (f.brand && brand !== f.brand) return false;
+  if (f.city && st.city !== f.city) return false;
+  if (f.store && String(st.id) !== f.store) return false;
+  if (f.isp && (!c || c.isp !== f.isp)) return false;
+  if (f.q){ const hay = [st.name, c?.isp, p.particulars, p.reference, p.remarks, p.payment_method].join(' ').toLowerCase(); if (!hay.includes(f.q.toLowerCase())) return false; }
+  return true;
+}
+
+function renderFilters(){
+  const el = $('#filters');
+  const show = ['dashboard','stores','connections','renewals','payments'].includes(S.page);
+  el.classList.toggle('hidden', !show); if (!show) return;
+  const brands = uniq(S.stores.map(s => s.brand));
+  const cities = uniq(S.stores.map(s => s.city));
+  const storesF = S.stores.filter(s => (!S.f.brand || s.brand === S.f.brand) && (!S.f.city || s.city === S.f.city));
+  const isps = uniq(S.conns.map(c => c.isp));
+  const opt = (v, cur, label) => `<option value="${esc(v)}" ${String(v)===String(cur)?'selected':''}>${esc(label ?? v)}</option>`;
+  const statusSel = S.page === 'payments' ? '' : `<select data-f="status">
+      ${opt('active', S.f.status, 'Live WiFi only')}${opt('all', S.f.status, 'All statuses')}
+      ${Object.entries(CONN_STATUS).map(([k,v]) => opt(k, S.f.status, v[0])).join('')}</select>`;
+  el.innerHTML = `<span class="lbl">Filter</span>
+    <select data-f="brand"><option value="">All brands</option>${brands.map(b => opt(b, S.f.brand)).join('')}</select>
+    <select data-f="city"><option value="">All cities</option>${cities.map(b => opt(b, S.f.city)).join('')}</select>
+    <select data-f="store" style="min-width:200px"><option value="">All stores (${storesF.length})</option>${storesF.map(s => opt(s.id, S.f.store, s.name)).join('')}</select>
+    <select data-f="isp"><option value="">All ISPs</option>${isps.map(b => opt(b, S.f.isp)).join('')}</select>
+    ${statusSel}
+    <input data-f="q" placeholder="Search store, DSL ID, phone…" value="${esc(S.f.q)}" style="flex:1;min-width:180px">
+    <button class="btn sm ghost" id="clearF">Clear</button>`;
+  el.querySelectorAll('[data-f]').forEach(inp => {
+    const ev = inp.tagName === 'INPUT' ? 'input' : 'change';
+    inp.addEventListener(ev, () => {
+      S.f[inp.dataset.f] = inp.value;
+      if (inp.dataset.f === 'brand' || inp.dataset.f === 'city') S.f.store = '';
+      if (inp.tagName === 'INPUT'){ clearTimeout(inp._t); inp._t = setTimeout(() => renderPage(true), 200); }
+      else render();
+    });
+  });
+  $('#clearF').onclick = () => { S.f = { brand:'', city:'', store:'', isp:'', status:'active', q:'' }; render(); };
+}
+
+/* ---------------- navigation ---------------- */
+const PAGES = [
+  ['dashboard','📊','Dashboard'], ['stores','🏪','Stores'], ['connections','📶','WiFi Connections'],
+  ['renewals','⏰','Renewals'], ['payments','💳','Payments'], ['equipment','📦','Disconnect & Equipment'],
+  ['recon','🧾','CC Recon'], ['settings','⚙️','Settings']
+];
+function renderNav(){
+  const overdue = S.conns.filter(c => isLive(c) && ['overdue','soon'].includes(dueInfo(c).state)).length;
+  $('#nav').innerHTML = PAGES.map(([k, ic, l]) => `<a data-p="${k}" class="${S.page===k?'active':''}"><span class="ic">${ic}</span>${l}
+    ${k==='renewals' && overdue ? `<span class="cnt">${overdue}</span>` : ''}</a>`).join('');
+  $('#nav').querySelectorAll('a').forEach(a => a.onclick = () => { S.page = a.dataset.p; $('#side').classList.remove('open'); render(); });
+}
+function render(){ renderNav(); renderFilters(); renderPage(); }
+function renderPage(keepFocus){
+  S.charts.forEach(c => c.destroy()); S.charts = [];
+  const [, , title] = PAGES.find(p => p[0] === S.page);
+  $('#pageTitle').textContent = title; $('#pageActions').innerHTML = '';
+  ({dashboard: pageDashboard, stores: pageStores, connections: pageConnections, renewals: pageRenewals,
+    payments: pagePayments, equipment: pageEquipment, recon: pageRecon, settings: pageSettings})[S.page]();
+}
+function actions(html){ $('#pageActions').innerHTML = html; }
+
+/* =====================================================================
+   DASHBOARD
+   ===================================================================== */
+function pageDashboard(){
+  const f = {...S.f, status: 'all'};
+  const conns = S.conns.filter(c => connPass(c, f));
+  const live = conns.filter(c => c.status === 'active');
+  const liveStores = new Set(live.map(c => c.store_id));
+  const due = conns.filter(isLive).map(c => ({c, d: dueInfo(c)}));
+  const overdue = due.filter(x => x.d.state === 'overdue');
+  const soon = due.filter(x => x.d.state === 'soon');
+  const pays = S.payments.filter(p => paymentPass(p, f));
+  const t = todayISO(), month = t.slice(0,7);
+  const thisMonth = pays.filter(p => p.payment_date.startsWith(month)).reduce((a,p) => a + Number(p.amount), 0);
+  const last12 = []; { const [y,m] = month.split('-').map(Number); for (let i = 11; i >= 0; i--){ const d = new Date(Date.UTC(y, m-1-i, 1)); last12.push(d.toISOString().slice(0,7)); } }
+  const yearSpend = pays.filter(p => p.payment_date.slice(0,7) >= last12[0]).reduce((a,p) => a + Number(p.amount), 0);
+  const pendingDisc = conns.filter(c => c.status === 'disconnect_requested' || c.status === 'shift_requested').length;
+  const discIds = new Set(conns.filter(c => ['disconnected','disconnect_requested'].includes(c.status)).map(c => c.id));
+  const toRecover = S.equipment.filter(e => discIds.has(e.connection_id) && !e.recovered_by_isp).length;
+  const perStore = {}; live.forEach(c => perStore[c.store_id] = (perStore[c.store_id]||0) + 1);
+
+  $('#page').innerHTML = `
+    <div class="grid kpis">
+      <div class="card kpi ok"><div class="k">Active WiFi</div><div class="v">${live.length}</div><div class="s">${conns.length} connections on record</div></div>
+      <div class="card kpi"><div class="k">Active stores</div><div class="v">${liveStores.size}</div><div class="s">avg ${(live.length / (liveStores.size||1)).toFixed(1)} WiFi / store</div></div>
+      <div class="card kpi bad"><div class="k">Overdue</div><div class="v">${overdue.length}</div><div class="s">${overdue.filter(x => x.d.days < -30).length} over 30 days — verify</div></div>
+      <div class="card kpi warn"><div class="k">Due ≤ ${DUE_SOON_DAYS} days</div><div class="v">${soon.length}</div><div class="s">${inr(soon.reduce((a,x)=>a+Number(x.c.last_amount||x.c.plan_amount||0),0))} expected</div></div>
+      <div class="card kpi"><div class="k">Spend this month</div><div class="v">${inr(thisMonth)}</div><div class="s">${inr(yearSpend)} in last 12 months</div></div>
+      <div class="card kpi"><div class="k">Disconnect / shift pending</div><div class="v">${pendingDisc}</div><div class="s">${toRecover} equipment not yet recovered by ISP</div></div>
+    </div>
+    <div class="grid charts" style="margin-top:16px">
+      <div class="card"><div class="card-h"><h3>Monthly WiFi spend by payment method</h3></div><div class="card-b"><div class="chart-box"><canvas id="chSpend"></canvas></div></div></div>
+      <div class="card"><div class="card-h"><h3>Active WiFi by ISP</h3></div><div class="card-b"><div class="chart-box"><canvas id="chIsp"></canvas></div></div></div>
+      <div class="card"><div class="card-h"><h3>Active WiFi & stores by city</h3></div><div class="card-b"><div class="chart-box"><canvas id="chCity"></canvas></div></div></div>
+      <div class="card"><div class="card-h"><h3>Spend by brand — last 12 months</h3></div><div class="card-b"><div class="chart-box"><canvas id="chBrand"></canvas></div></div></div>
+      <div class="card"><div class="card-h"><h3>Stores by number of active WiFi</h3></div><div class="card-b"><div class="chart-box"><canvas id="chPer"></canvas></div></div></div>
+      <div class="card"><div class="card-h"><h3>Renewal health</h3></div><div class="card-b"><div class="chart-box"><canvas id="chDue"></canvas></div></div></div>
+    </div>
+    <div class="card" style="margin-top:16px"><div class="card-h"><h3>Renewals: overdue up to 30 days + next 15 days</h3><button class="btn sm" onclick="S.page='renewals';render()">Open renewals →</button></div>
+      <div class="tbl-wrap" style="max-height:420px">${renewalTable(due.filter(x => x.d.state !== 'none' && x.d.days >= -30 && x.d.days <= 15).sort((a,b) => a.d.days - b.d.days).slice(0, 30))}</div></div>`;
+
+  const C = ['#4f46e5','#12b76a','#f79009','#2e90fa','#f04438','#7a5af8','#06aed4','#ee46bc','#667085','#84cc16','#a15c07','#0e9384'];
+  const methods = uniq([...S.methods.map(m => m.name), ...pays.map(p => p.payment_method)]);
+  const spend = methods.map((m, i) => ({ label: m || 'Unspecified', backgroundColor: C[i % C.length], borderRadius: 3,
+    data: last12.map(mo => pays.filter(p => p.payment_method === m && p.payment_date.startsWith(mo)).reduce((a,p) => a + Number(p.amount), 0)) }))
+    .filter(ds => ds.data.some(v => v));
+  const moLabel = mo => new Date(mo + '-01T00:00:00').toLocaleDateString('en-IN', {month:'short', year:'2-digit'});
+  const money = { callback: v => '₹' + Number(v).toLocaleString('en-IN') };
+  const base = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } } };
+  S.charts.push(new Chart($('#chSpend'), { type: 'bar', data: { labels: last12.map(moLabel), datasets: spend },
+    options: { ...base, scales: { x: { stacked: true, grid: {display:false} }, y: { stacked: true, ticks: money } },
+      plugins: { ...base.plugins, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${inr(c.raw)}` } } } } }));
+  const cnt = (arr, key) => { const m = {}; arr.forEach(x => { const k = key(x) || '—'; m[k] = (m[k]||0) + 1; }); return Object.entries(m).sort((a,b) => b[1]-a[1]); };
+  const isp = cnt(live, c => c.isp);
+  S.charts.push(new Chart($('#chIsp'), { type: 'bar', data: { labels: isp.map(x => x[0]), datasets: [{ label: 'Active WiFi', data: isp.map(x => x[1]), backgroundColor: '#4f46e5', borderRadius: 4 }] },
+    options: { ...base, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { ticks: { precision: 0 } }, y: { grid: {display:false}, ticks: { autoSkip: false, font: { size: 11 } } } } } }));
+  const city = cnt(live, c => c.city);
+  S.charts.push(new Chart($('#chCity'), { type: 'bar', data: { labels: city.map(x => x[0]), datasets: [
+      { label: 'Active WiFi', data: city.map(x => x[1]), backgroundColor: '#4f46e5', borderRadius: 4 },
+      { label: 'Active stores', data: city.map(x => new Set(live.filter(c => (c.city||'—') === x[0]).map(c => c.store_id)).size), backgroundColor: '#12b76a', borderRadius: 4 }] },
+    options: { ...base, scales: { y: { ticks: { precision: 0 } }, x: { grid: {display:false} } } } }));
+  const bm = {}; pays.filter(p => p.payment_date.slice(0,7) >= last12[0]).forEach(p => { const b = p.brand || paymentStore(p).brand || 'Zippee'; bm[b] = (bm[b]||0) + Number(p.amount); });
+  const brand = Object.entries(bm).sort((a,b) => b[1]-a[1]);
+  S.charts.push(new Chart($('#chBrand'), { type: 'bar', data: { labels: brand.map(x => x[0]), datasets: [{ label: 'Spend', data: brand.map(x => x[1]), backgroundColor: '#7a5af8', borderRadius: 4 }] },
+    options: { ...base, indexAxis: 'y', plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => inr(c.raw) } } }, scales: { x: { ticks: money }, y: { grid: {display:false} } } } }));
+  const dist = { '1 WiFi': 0, '2 WiFi': 0, '3 WiFi': 0, '4+ WiFi': 0 };
+  Object.values(perStore).forEach(n => dist[n >= 4 ? '4+ WiFi' : n + ' WiFi']++);
+  S.charts.push(new Chart($('#chPer'), { type: 'bar', data: { labels: Object.keys(dist), datasets: [{ label: 'Stores', data: Object.values(dist), backgroundColor: '#2e90fa', borderRadius: 4 }] },
+    options: { ...base, plugins: { legend: { display: false } }, scales: { y: { ticks: { precision: 0 } }, x: { grid: {display:false} } } } }));
+  const st = { 'Overdue': overdue.length, ['Due ≤' + DUE_SOON_DAYS + 'd']: soon.length, 'OK': due.filter(x => x.d.state === 'ok').length, 'No tenure set': due.filter(x => x.d.state === 'none').length };
+  S.charts.push(new Chart($('#chDue'), { type: 'doughnut', data: { labels: Object.keys(st), datasets: [{ data: Object.values(st), backgroundColor: ['#f04438','#f79009','#12b76a','#d0d5dd'] }] },
+    options: { ...base, cutout: '62%', plugins: { legend: { position: 'right' } } } }));
+}
+
+/* =====================================================================
+   RENEWALS
+   ===================================================================== */
+function renewalTable(rows){
+  if (!rows.length) return '<div class="empty">Nothing here 🎉</div>';
+  return `<table><thead><tr><th>Store</th><th>Brand</th><th>City</th><th>ISP</th><th>Account / DSL ID</th><th class="num">Last paid</th><th>Paid on</th><th>Tenure</th><th>Next due</th><th>Status</th><th></th></tr></thead><tbody>
+    ${rows.map(({c, d}) => `<tr>
+      <td><a href="#" onclick="openStore(${c.store_id});return false">${esc(c.store_name)}</a>${c.label ? `<div class="small muted">${esc(c.label)}</div>` : ''}</td>
+      <td>${esc(c.brand)}</td><td>${esc(c.city)}</td><td>${esc(c.isp)}</td><td class="mono">${esc(c.account_no || '—')}</td>
+      <td class="num">${c.last_paid_via_bulk ? '<span class="small muted">bulk bill</span>' : inr(c.last_amount)}</td><td>${fmtD(c.last_paid_on)}</td>
+      <td>${c.effective_tenure ? c.effective_tenure + ' mo' : '—'}</td><td>${fmtD(c.next_due)}</td><td>${d.html}</td>
+      <td><button class="btn sm primary" onclick="openPayment(null, ${c.id})">Mark paid</button></td></tr>`).join('')}</tbody></table>`;
+}
+function pageRenewals(){
+  const all = S.conns.filter(c => connPass(c) && isLive(c)).map(c => ({c, d: dueInfo(c)}));
+  const groups = [
+    ['overdue', 'Overdue', all.filter(x => x.d.state === 'overdue').sort((a,b) => b.d.days - a.d.days)],
+    ['soon', `Due in ${DUE_SOON_DAYS} days or less`, all.filter(x => x.d.state === 'soon').sort((a,b) => a.d.days - b.d.days)],
+    ['month', 'Next 30 days', all.filter(x => x.d.state === 'ok' && x.d.days <= 30).sort((a,b) => a.d.days - b.d.days)],
+    ['ok', 'All upcoming', all.filter(x => x.d.state === 'ok').sort((a,b) => a.d.days - b.d.days)],
+    ['none', 'No tenure set', all.filter(x => x.d.state === 'none')]
+  ];
+  const tab = S.tab.renewals || 'overdue';
+  const cur = groups.find(g => g[0] === tab);
+  actions(`<button class="btn" onclick="exportRenewals()">⬇ Export list</button>`);
+  $('#page').innerHTML = `<div class="tabs">${groups.map(g => `<button class="${g[0]===tab?'on':''}" onclick="S.tab.renewals='${g[0]}';renderPage()">${g[1]} (${g[2].length})</button>`).join('')}</div>
+    ${tab === 'none' ? '<p class="muted small">These live connections have no tenure on their last payment or on the connection. Edit the connection and set "Renewal tenure" so the next due date is calculated.</p>' : ''}
+    <div class="card"><div class="tbl-wrap">${tab === 'none' ? noTenureTable(cur[2]) : renewalTable(cur[2])}</div></div>`;
+  window._renewalRows = cur[2];
+}
+function noTenureTable(rows){
+  if (!rows.length) return '<div class="empty">All live connections have a tenure ✔</div>';
+  return `<table><thead><tr><th>Store</th><th>ISP</th><th>Account / DSL ID</th><th>Last paid</th><th>Paid on</th><th></th></tr></thead><tbody>
+  ${rows.map(({c}) => `<tr><td>${esc(c.store_name)}</td><td>${esc(c.isp)}</td><td class="mono">${esc(c.account_no||'—')}</td><td>${inr(c.last_amount)}</td><td>${fmtD(c.last_paid_on)}</td>
+  <td class="row-actions"><button class="btn sm" onclick="openConnection(${c.id})">Set tenure</button><button class="btn sm" onclick="openPayment(null, ${c.id})">Add payment</button></td></tr>`).join('')}</tbody></table>`;
+}
+function exportRenewals(){
+  const rows = (window._renewalRows || []).map(({c, d}) => ({ Store: c.store_name, Brand: c.brand, City: c.city, ISP: c.isp, 'Account / DSL ID': c.account_no,
+    'Last amount': c.last_amount, 'Last paid': fmtD(c.last_paid_on), 'Tenure (months)': c.effective_tenure, 'Next due': fmtD(c.next_due), 'Days left': d.days }));
+  downloadSheet(rows, 'Renewals', `WiFi renewals ${todayISO()}.xlsx`);
+}
+
+/* =====================================================================
+   STORES
+   ===================================================================== */
+function pageStores(){
+  const f = S.f;
+  const stores = S.stores.filter(s => storePass(s));
+  actions(`<button class="btn" onclick="openMerge()">⇄ Merge duplicates</button><button class="btn primary" onclick="openStoreForm()">＋ Add store</button>`);
+  const showInactive = S.tab.storesAll;
+  const list = stores.filter(s => showInactive || s.status === 'active');
+  $('#page').innerHTML = `<div class="tabs"><button class="${!showInactive?'on':''}" onclick="S.tab.storesAll=false;renderPage()">Active stores (${stores.filter(s=>s.status==='active').length})</button>
+      <button class="${showInactive?'on':''}" onclick="S.tab.storesAll=true;renderPage()">All stores (${stores.length})</button></div>
+    ${list.length ? `<div class="grid stores-grid">${list.map(s => {
+      const cs = S.conns.filter(c => c.store_id === s.id && connPass(c, {...f, store:'', q:''}));
+      return `<div class="card store-card" onclick="openStore(${s.id})">
+        <div style="display:flex;gap:6px;align-items:start"><div class="t" style="flex:1">${esc(s.name)}</div>${s.status !== 'active' ? badge(STORE_STATUS, s.status) : ''}</div>
+        <div class="m">${esc(s.brand)} · ${esc(s.city || 'No city')} · <b>${cs.filter(c => c.status==='active').length}</b> active WiFi</div>
+        <div class="wifi-pills">${cs.map(c => { const d = dueInfo(c); const cls = !isLive(c) ? '' : d.state === 'overdue' ? 'bad' : d.state === 'soon' ? 'warn' : '';
+          return `<span class="wifi-pill ${cls}" title="${esc(CONN_STATUS[c.status]?.[0])}${c.next_due ? ' · due ' + fmtD(c.next_due) : ''}">${esc(c.isp)}${!isLive(c) ? ' ⏻' : ''}</span>`; }).join('') || '<span class="small muted">No WiFi matching filters</span>'}</div>
+      </div>`; }).join('')}</div>` : '<div class="card empty">No stores match these filters.</div>'}`;
+}
+
+function credCell(c){
+  const method = LOGIN_METHODS[c.effective_login_method] || c.effective_login_method || '—';
+  const pw = c.login_password ? `<span class="cred"><span class="mono pw" data-pw="${c.id}">••••••</span>
+      <button class="icon-btn" title="Show" onclick="togglePw(${c.id}, this)">👁</button>
+      <button class="icon-btn" title="Copy" onclick="copyText(${JSON.stringify(c.login_password).replace(/"/g,'&quot;')})">⧉</button></span>` : '<span class="muted">—</span>';
+  return { method, pw };
+}
+function togglePw(id, btn){ const el = document.querySelector(`[data-pw="${id}"]`); const c = byId(S.conns, id);
+  if (el.textContent.startsWith('•')){ el.textContent = c.login_password; btn.textContent = '🙈'; } else { el.textContent = '••••••'; btn.textContent = '👁'; } }
+function copyText(t){ navigator.clipboard.writeText(t).then(() => toast('Copied')); }
+
+function connCard(c){
+  const d = dueInfo(c); const cr = credCell(c);
+  const eq = S.equipment.filter(e => e.connection_id === c.id);
+  const ev = S.events.filter(e => e.connection_id === c.id).slice(0, 4);
+  const kv = (l, x) => `<div><div class="l">${l}</div><div class="x">${x}</div></div>`;
+  return `<div class="conn">
+    <div class="conn-h"><span class="isp">📶 ${esc(c.isp)}</span>${c.label ? `<span class="badge b-brand">${esc(c.label)}</span>` : ''}${badge(CONN_STATUS, c.status)}${isLive(c) ? d.html : ''}
+      <span style="flex:1"></span>
+      <div class="row-actions">
+        <button class="btn sm primary" onclick="openPayment(null, ${c.id})">＋ Payment</button>
+        <button class="btn sm" onclick="openConnection(${c.id})">Edit</button>
+        <button class="btn sm" onclick="openStatusChange(${c.id}, 'disconnect')">Disconnect</button>
+        <button class="btn sm" onclick="openStatusChange(${c.id}, 'shift')">Shift</button>
+        ${!isLive(c) ? `<button class="btn sm" onclick="openStatusChange(${c.id}, 'reconnect')">Reactivate</button>` : ''}
+      </div></div>
+    <div class="kv">
+      ${kv('Account / DSL ID', `<span class="mono">${esc(c.account_no || '—')}</span>${c.account_no ? ` <button class="icon-btn" onclick="copyText('${esc(c.account_no)}')">⧉</button>` : ''}`)}
+      ${kv('Login method', esc(cr.method))}
+      ${kv('Login ID / Username', `<span class="mono">${esc(c.login_id || '—')}</span>`)}
+      ${kv('Password', cr.pw)}
+      ${kv('Registered mobile', esc(c.registered_phone || '—'))}
+      ${kv('Registered name', esc(c.registered_name || '—'))}
+      ${kv('Registered email', esc(c.registered_email || '—'))}
+      ${kv('Plan / speed', esc([c.plan_name, c.speed].filter(Boolean).join(' · ') || '—'))}
+      ${kv('Last paid', c.last_paid_via_bulk ? `Bulk bill on ${fmtD(c.last_paid_on)}` : `${inr(c.last_amount)} on ${fmtD(c.last_paid_on)}`)}
+      ${kv('Paid via', esc(c.last_method || '—'))}
+      ${kv('Tenure', c.effective_tenure ? c.effective_tenure + ' month(s)' : '—')}
+      ${kv('Next renewal', `<b>${fmtD(c.next_due)}</b>${c.next_due_override ? ' <span class="small muted">(manual)</span>' : ''}`)}
+      ${c.portal_url ? kv('ISP portal', `<a href="${esc(c.portal_url)}" target="_blank" rel="noopener">Open ↗</a>`) : ''}
+      ${c.bill_link ? kv('Bill', /^https?:/.test(c.bill_link) ? `<a href="${esc(c.bill_link)}" target="_blank" rel="noopener">View ↗</a>` : esc(c.bill_link)) : ''}
+    </div>
+    ${c.notes ? `<div class="small muted" style="margin-top:10px">📝 ${esc(c.notes)}</div>` : ''}
+    <div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span class="small"><b>Equipment:</b></span>
+      ${eq.map(e => `<span class="wifi-pill" style="cursor:pointer" onclick="openEquipment(${e.id})">${esc(e.item)}${e.serial_no ? ' #' + esc(e.serial_no) : ''} — ${esc(e.location)}${e.held_by ? ' (' + esc(e.held_by) + ')' : ''}${e.recovered_by_isp ? ' ✔ recovered' : ''}</span>`).join('') || '<span class="small muted">none recorded</span>'}
+      <button class="btn sm ghost" onclick="openEquipment(null, ${c.id})">＋ Add</button>
+    </div>
+    ${ev.length ? `<div class="small muted" style="margin-top:8px">${ev.map(e => `• ${fmtD(e.event_date)} — ${esc(EVENT_LABELS[e.event_type] || e.event_type)}${e.isp_ticket_no ? ' (ticket ' + esc(e.isp_ticket_no) + ')' : ''}${e.notes ? ': ' + esc(e.notes) : ''}`).join('<br>')}</div>` : ''}
+  </div>`;
+}
+
+function openStore(id){
+  const s = byId(S.stores, id); if (!s) return;
+  const conns = S.conns.filter(c => c.store_id === id).sort((a,b) => (isLive(b) - isLive(a)) || a.isp.localeCompare(b.isp));
+  const pays = S.payments.filter(p => p.store_id === id || conns.some(c => c.id === p.connection_id || (p.covers_connection_ids||[]).includes(c.id))).slice(0, 15);
+  $('#overlayRoot').innerHTML = `<div class="overlay" onclick="if(event.target===this)closeDrawer()"><div class="drawer">
+    <div class="drawer-h"><h3>🏪 ${esc(s.name)}</h3>${badge(STORE_STATUS, s.status)}
+      <button class="btn sm" onclick="openStoreForm(${s.id})">Edit store</button>
+      <button class="btn sm primary" onclick="openConnection(null, ${s.id})">＋ Add WiFi</button>
+      <button class="btn sm ghost" onclick="closeDrawer()">✕</button></div>
+    <div class="drawer-b">
+      <div class="card card-b" style="margin-bottom:16px"><div class="kv">
+        <div><div class="l">Brand</div><div class="x">${esc(s.brand)}</div></div>
+        <div><div class="l">City</div><div class="x">${esc(s.city || '—')}</div></div>
+        <div><div class="l">WiFi connections</div><div class="x">${conns.filter(c=>c.status==='active').length} active / ${conns.length} total</div></div>
+        <div><div class="l">Registered Name </div><div class="x">${esc([s.Registered_name, s.Registered_phone].filter(Boolean).join(' · ') || '—')}</div></div>
+        <div style="grid-column:1/-1"><div class="l">Address</div><div class="x">${esc(s.address || '—')}</div></div>
+        ${s.notes ? `<div style="grid-column:1/-1"><div class="l">Notes</div><div class="x">${esc(s.notes)}</div></div>` : ''}
+      </div></div>
+      ${conns.map(connCard).join('') || '<div class="card empty">No WiFi added yet.</div>'}
+      <div class="card" style="margin-top:6px"><div class="card-h"><h3>Recent payments</h3></div>
+        <div class="tbl-wrap">${paymentsTable(pays, true)}</div></div>
+    </div></div></div>`;
+}
+function closeDrawer(){ $('#overlayRoot').innerHTML = ''; }
+function reopenDrawer(){ const h = $('#overlayRoot .drawer-h h3'); if (!h) return; const s = S.stores.find(x => '🏪 ' + x.name === h.textContent); if (s) openStore(s.id); }
+
+/* =====================================================================
+   CONNECTIONS
+   ===================================================================== */
+function pageConnections(){
+  const rows = S.conns.filter(c => connPass(c)).sort((a,b) => (a.store_name||'').localeCompare(b.store_name||'') || a.isp.localeCompare(b.isp));
+  actions(`<button class="btn" onclick="exportConnections()">⬇ Export</button><button class="btn primary" onclick="openConnection()">＋ Add WiFi</button>`);
+  window._connRows = rows;
+  $('#page').innerHTML = `<div class="card"><div class="card-h"><h3>${rows.length} connection(s) across ${new Set(rows.map(c=>c.store_id)).size} store(s)</h3></div>
+    <div class="tbl-wrap">${rows.length ? `<table><thead><tr><th>Store</th><th>ISP</th><th>Account / DSL ID</th><th>Login</th><th>Password</th><th>Registered mobile / name / email</th><th class="num">Last paid</th><th>Tenure</th><th>Next due</th><th>Status</th><th></th></tr></thead><tbody>
+    ${rows.map(c => { const cr = credCell(c); const d = dueInfo(c); return `<tr>
+      <td><a href="#" onclick="openStore(${c.store_id});return false">${esc(c.store_name || '—')}</a><div class="small muted">${esc(c.brand||'')} · ${esc(c.city||'')}</div></td>
+      <td>${esc(c.isp)}${c.label ? `<div class="small muted">${esc(c.label)}</div>` : ''}</td>
+      <td class="mono">${esc(c.account_no || '—')}</td>
+      <td><div class="small muted">${esc(cr.method)}</div><span class="mono">${esc(c.login_id || '')}</span></td>
+      <td>${cr.pw}</td>
+      <td class="small">${esc(c.registered_phone || '—')}<br>${esc(c.registered_name || '')}<br><span class="muted">${esc(c.registered_email || '')}</span></td>
+      <td class="num">${c.last_paid_via_bulk ? '<span class="small muted">bulk</span>' : inr(c.last_amount)}<div class="small muted">${fmtD(c.last_paid_on)}</div></td>
+      <td>${c.effective_tenure ? c.effective_tenure + ' mo' : '—'}</td>
+      <td>${fmtD(c.next_due)}<div>${isLive(c) ? d.html : ''}</div></td>
+      <td>${badge(CONN_STATUS, c.status)}</td>
+      <td class="row-actions"><button class="btn sm" onclick="openConnection(${c.id})">Edit</button><button class="btn sm" onclick="openPayment(null, ${c.id})">＋ Pay</button></td></tr>`; }).join('')}
+    </tbody></table>` : '<div class="empty">No connections match these filters.</div>'}</div></div>`;
+}
+function exportConnections(){
+  const rows = (window._connRows || []).map(c => ({ Store: c.store_name, Brand: c.brand, City: c.city, ISP: c.isp, Label: c.label, 'Account / DSL ID': c.account_no,
+    'Login method': LOGIN_METHODS[c.effective_login_method] || c.effective_login_method, 'Login ID': c.login_id, 'Registered mobile': c.registered_phone,
+    'Registered name': c.registered_name, 'Registered email': c.registered_email, Plan: c.plan_name, Speed: c.speed, 'Plan amount': c.plan_amount,
+    'Last amount': c.last_amount, 'Last paid': fmtD(c.last_paid_on), 'Tenure (months)': c.effective_tenure, 'Next due': fmtD(c.next_due),
+    Status: CONN_STATUS[c.status]?.[0] || c.status, Notes: c.notes }));
+  downloadSheet(rows, 'WiFi', `WiFi connections ${todayISO()}.xlsx`);
+}
+
+/* =====================================================================
+   PAYMENTS
+   ===================================================================== */
+function paymentsTable(rows, compact){
+  if (!rows.length) return '<div class="empty">No payments.</div>';
+  return `<table><thead><tr><th>Date</th><th>Store</th><th>ISP</th><th>Type</th><th class="num">Amount</th><th>Tenure</th><th>Method</th>${compact ? '' : '<th>Reference / remarks</th>'}<th></th></tr></thead><tbody>
+  ${rows.map(p => { const c = byId(S.conns, p.connection_id); const st = paymentStore(p); const cov = (p.covers_connection_ids||[]).length;
+    return `<tr><td>${fmtD(p.payment_date)}</td>
+      <td>${st.name ? esc(st.name) : `<span class="small">${esc((p.particulars||'Bulk payment').slice(0, 70))}${(p.particulars||'').length > 70 ? '…' : ''}</span>`}${cov ? `<div class="small muted">covers ${cov} connection(s)</div>` : ''}</td>
+      <td>${esc(c?.isp || '')}</td><td>${esc(p.payment_type)}</td><td class="num">${inr(p.amount)}</td><td>${p.tenure_months ? p.tenure_months + ' mo' : '—'}</td>
+      <td>${p.payment_method ? `<span class="badge b-brand">${esc(p.payment_method)}</span>` : '—'}</td>
+      ${compact ? '' : `<td class="small">${esc([p.reference, p.remarks].filter(Boolean).join(' · '))}</td>`}
+      <td class="row-actions"><button class="btn sm" onclick="openPayment(${p.id})">Edit</button></td></tr>`; }).join('')}</tbody></table>`;
+}
+function pagePayments(){
+  const pf = S.tab.pay || (S.tab.pay = { from: addMonths(todayISO(), -3), to: todayISO(), method: '' });
+  const rows = S.payments.filter(p => paymentPass(p) && p.payment_date >= pf.from && p.payment_date <= pf.to && (!pf.method || p.payment_method === pf.method));
+  const total = rows.reduce((a,p) => a + Number(p.amount), 0);
+  actions(`<button class="btn" onclick="exportPayments()">⬇ Export</button><button class="btn primary" onclick="openPayment()">＋ Record payment</button>`);
+  window._payRows = rows;
+  $('#page').innerHTML = `<div class="filters" style="margin-top:-6px"><span class="lbl">Paid between</span>
+      <input type="date" id="pFrom" value="${pf.from}"><span class="muted">and</span><input type="date" id="pTo" value="${pf.to}">
+      <select id="pMethod"><option value="">All methods</option>${S.methods.map(m => `<option ${m.name===pf.method?'selected':''}>${esc(m.name)}</option>`).join('')}</select>
+      <span style="margin-left:auto"><b>${rows.length}</b> payments · <b>${inr(total)}</b></span></div>
+    <div class="card"><div class="tbl-wrap">${paymentsTable(rows)}</div></div>`;
+  $('#pFrom').onchange = e => { pf.from = e.target.value; renderPage(); };
+  $('#pTo').onchange = e => { pf.to = e.target.value; renderPage(); };
+  $('#pMethod').onchange = e => { pf.method = e.target.value; renderPage(); };
+}
+function exportPayments(){
+  const rows = (window._payRows || []).map(p => { const c = byId(S.conns, p.connection_id); const st = paymentStore(p);
+    return { Date: fmtD(p.payment_date), City: st.city, Brand: p.brand || st.brand, Store: st.name || p.particulars, ISP: c?.isp, Type: p.payment_type,
+      'Tenure (months)': p.tenure_months, Amount: Number(p.amount), 'Payment method': p.payment_method, Reference: p.reference, Remarks: p.remarks }; });
+  downloadSheet(rows, 'Payments', `WiFi payments ${todayISO()}.xlsx`);
+}
+
+/* =====================================================================
+   DISCONNECT & EQUIPMENT
+   ===================================================================== */
+function pageEquipment(){
+  const tab = S.tab.eq || 'pending';
+  const pending = S.conns.filter(c => ['disconnect_requested','shift_requested','suspended'].includes(c.status));
+  const disc = S.conns.filter(c => c.status === 'disconnected');
+  const discIds = new Set([...pending, ...disc].map(c => c.id));
+  const recover = S.equipment.filter(e => discIds.has(e.connection_id) && !e.recovered_by_isp);
+  actions(`<button class="btn primary" onclick="openEquipment()">＋ Add equipment</button>`);
+  const connRow = c => { const eq = S.equipment.filter(e => e.connection_id === c.id); const last = S.events.find(e => e.connection_id === c.id);
+    return `<tr><td><a href="#" onclick="openStore(${c.store_id});return false">${esc(c.store_name || '—')}</a><div class="small muted">${esc(c.city||'')}</div></td>
+      <td>${esc(c.isp)}</td><td class="mono">${esc(c.account_no||'—')}</td><td>${badge(CONN_STATUS, c.status)}</td>
+      <td>${last ? `${fmtD(last.event_date)} — ${esc(EVENT_LABELS[last.event_type]||last.event_type)}${last.isp_ticket_no ? '<div class="small muted">Ticket ' + esc(last.isp_ticket_no) + '</div>' : ''}` : '—'}</td>
+      <td class="small">${eq.map(e => `<div style="cursor:pointer" onclick="openEquipment(${e.id})">• ${esc(e.item)} — <b>${esc(e.location)}</b>${e.held_by ? ' (' + esc(e.held_by) + (e.holder_phone ? ', ' + esc(e.holder_phone) : '') + ')' : ''}${e.recovered_by_isp ? ' ✔ recovered ' + fmtD(e.recovered_on) : ''}</div>`).join('') || '<span class="muted">No equipment recorded</span>'}</td>
+      <td class="row-actions">${c.status !== 'disconnected' ? `<button class="btn sm" onclick="openStatusChange(${c.id}, '${c.status==='shift_requested'?'shift':'disconnect'}')">Update</button>` : ''}
+        <button class="btn sm" onclick="openStatusChange(${c.id}, 'reconnect')">Reactivate</button></td></tr>`; };
+  const head = '<table><thead><tr><th>Store</th><th>ISP</th><th>Account / DSL ID</th><th>Status</th><th>Last event</th><th>Router & accessories — where?</th><th></th></tr></thead><tbody>';
+  let body;
+  if (tab === 'pending') body = pending.length ? head + pending.map(connRow).join('') + '</tbody></table>' : '<div class="empty">No pending disconnections or shifts.</div>';
+  else if (tab === 'disc') body = disc.length ? head + disc.map(connRow).join('') + '</tbody></table>' : '<div class="empty">No disconnected connections.</div>';
+  else {
+    const list = tab === 'recover' ? recover : S.equipment;
+    body = list.length ? `<table><thead><tr><th>Item</th><th>Serial</th><th>Store / connection</th><th>Location</th><th>Held by</th><th>ISP recovered?</th><th>Notes</th><th></th></tr></thead><tbody>
+      ${list.map(e => { const c = byId(S.conns, e.connection_id) || {}; return `<tr><td>${esc(e.item)}</td><td class="mono">${esc(e.serial_no||'—')}</td>
+        <td>${esc(c.store_name || '—')}<div class="small muted">${esc(c.isp || '')} ${c.status ? '· ' + esc(CONN_STATUS[c.status]?.[0]) : ''}</div></td>
+        <td><b>${esc(e.location)}</b></td><td>${esc(e.held_by||'—')}<div class="small muted">${esc(e.holder_phone||'')}</div></td>
+        <td>${e.recovered_by_isp ? `<span class="badge b-ok">Yes ${fmtD(e.recovered_on)}</span>` : '<span class="badge b-grey">No</span>'}</td>
+        <td class="small">${esc(e.notes||'')}</td><td><button class="btn sm" onclick="openEquipment(${e.id})">Edit</button></td></tr>`; }).join('')}</tbody></table>` : '<div class="empty">Nothing here.</div>';
+  }
+  const tabs = [['pending', `Pending disconnect / shift (${pending.length})`], ['recover', `Equipment awaiting ISP recovery (${recover.length})`], ['disc', `Disconnected (${disc.length})`], ['all', `All equipment (${S.equipment.length})`]];
+  $('#page').innerHTML = `<div class="tabs">${tabs.map(t => `<button class="${t[0]===tab?'on':''}" onclick="S.tab.eq='${t[0]}';renderPage()">${t[1]}</button>`).join('')}</div>
+    <div class="card"><div class="tbl-wrap">${body}</div></div>`;
+}
+
+/* =====================================================================
+   CC RECON  →  Excel with one tab per payment method
+   ===================================================================== */
+function pageRecon(){
+  const r = S.recon || (S.recon = (() => { const t = todayISO(); const [y,m] = t.split('-').map(Number);
+    const from = new Date(Date.UTC(y, m-2, 17)).toISOString().slice(0,10); const to = new Date(Date.UTC(y, m-1, 16)).toISOString().slice(0,10);
+    return { from, to, methods: S.methods.filter(x => x.include_in_recon).map(x => x.name) }; })());
+  const rows = reconRows(r);
+  $('#page').innerHTML = `<div class="card"><div class="card-h"><h3>Credit-card / bank recon export</h3></div><div class="card-b">
+      <div class="form" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));align-items:end">
+        <div><label>Payment date from</label><input type="date" id="rFrom" value="${r.from}"></div>
+        <div><label>Payment date to</label><input type="date" id="rTo" value="${r.to}"></div>
+        <div class="full"><label>Tabs to include</label><div style="display:flex;gap:14px;flex-wrap:wrap">
+          ${S.methods.map(m => `<label style="display:flex;gap:6px;align-items:center;font-weight:500"><input type="checkbox" style="width:auto" data-m="${esc(m.name)}" ${r.methods.includes(m.name)?'checked':''}> ${esc(m.name)} <span class="muted small">→ “${esc(m.recon_sheet_name || m.name)}”</span></label>`).join('')}
+        </div></div>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn primary" id="rDl">⬇ Download recon Excel</button>
+        <span class="muted small">Same layout as your “Credit Card Recon” file: Date · Entity · Particulars · Qty · Price · Amount + Total, one tab per method.</span>
+      </div></div></div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-top:16px">
+      ${r.methods.map(m => { const list = rows.filter(x => x.method === m); return `<div class="card kpi"><div class="k">${esc(m)}</div><div class="v">${inr(list.reduce((a,x)=>a+x.amount,0))}</div><div class="s">${list.length} transactions</div></div>`; }).join('')}
+    </div>
+    ${r.methods.map(m => { const list = rows.filter(x => x.method === m); return `<div class="card" style="margin-top:16px"><div class="card-h"><h3>${esc(sheetName(m))}</h3><span class="muted small">${list.length} rows</span></div>
+      <div class="tbl-wrap" style="max-height:340px">${list.length ? `<table><thead><tr><th>Date</th><th>Entity</th><th>Particulars</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Amount</th></tr></thead><tbody>
+      ${list.map(x => `<tr><td>${x.date}</td><td>${esc(x.entity)}</td><td>${esc(x.particulars)}</td><td class="num">1</td><td class="num">${inr(x.amount)}</td><td class="num">${inr(x.amount)}</td></tr>`).join('')}
+      <tr><td colspan="5"><b>Total Amount</b></td><td class="num"><b>${inr(list.reduce((a,x)=>a+x.amount,0))}</b></td></tr></tbody></table>` : '<div class="empty">No payments in this range.</div>'}</div></div>`; }).join('')}`;
+  $('#rFrom').onchange = e => { r.from = e.target.value; renderPage(); };
+  $('#rTo').onchange = e => { r.to = e.target.value; renderPage(); };
+  document.querySelectorAll('[data-m]').forEach(cb => cb.onchange = () => { r.methods = [...document.querySelectorAll('[data-m]:checked')].map(x => x.dataset.m); renderPage(); });
+  $('#rDl').onclick = () => downloadRecon(r, rows);
+}
+function sheetName(m){ return (S.methods.find(x => x.name === m)?.recon_sheet_name || m).replace(/[\\/?*\[\]:]/g, '').slice(0, 31); }
+function reconRows(r){
+  return S.payments.filter(p => p.payment_date >= r.from && p.payment_date <= r.to && r.methods.includes(p.payment_method))
+    .sort((a,b) => a.payment_date.localeCompare(b.payment_date) || a.id - b.id)
+    .map(p => { const c = byId(S.conns, p.connection_id); const st = paymentStore(p);
+      const particulars = p.particulars || [st.name, c?.isp, p.payment_type].filter(Boolean).join(' ');
+      return { date: fmtDot(p.payment_date), entity: p.brand || st.brand || 'Zippee', particulars, amount: Number(p.amount), method: p.payment_method }; });
+}
+async function downloadRecon(r, rows){
+  if (!r.methods.length) return toast('Pick at least one tab', true);
+  const wb = new ExcelJS.Workbook();
+  const font = { name: 'Arial', size: 10 }, bold = { ...font, bold: true };
+  const thin = { style: 'thin' }, border = { top: thin, left: thin, bottom: thin, right: thin };
+  const green = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F5E9' } };
+  for (const m of r.methods){
+    const list = rows.filter(x => x.method === m);
+    const ws = wb.addWorksheet(sheetName(m));
+    ws.columns = [{width:12.63},{width:10.13},{width:50.13},{width:5.13},{width:10.13},{width:11},{width:7.63},{width:10.13}];
+    ws.getRow(1).values = ['Wifi']; ws.mergeCells('A1:H1');
+    ws.getRow(2).values = ['Date','Entity','Particulars','Qty','Price','Amount'];
+    list.forEach((x, i) => { const rn = i + 3; const row = ws.getRow(rn);
+      row.values = [x.date, x.entity, x.particulars, 1, x.amount, { formula: `D${rn}*E${rn}`, result: x.amount }]; });
+    const totalRow = list.length + 3;
+    ws.getRow(totalRow).values = ['Total Amount', null, null, null, null, list.length ? { formula: `SUM(F3:F${totalRow - 1})`, result: list.reduce((a,x)=>a+x.amount,0) } : 0];
+    ws.mergeCells(`A${totalRow}:B${totalRow}`);
+    for (let rn = 1; rn <= totalRow; rn++) for (let cn = 1; cn <= 8; cn++){
+      const cell = ws.getCell(rn, cn); cell.border = border; cell.font = (rn <= 2 || rn === totalRow) && cn !== 3 ? bold : font;
+      if (rn <= 2 || (rn === totalRow && cn <= 2)) cell.alignment = { horizontal: 'center' };
+      if (rn > 2 && cn === 5) cell.numFmt = '"₹" #,##0';
+      if (rn > 2 && cn === 6){ cell.numFmt = '"₹"#,##0'; if (rn < totalRow) cell.fill = green; }
+    }
+  }
+  const buf = await wb.xlsx.writeBuffer();
+  const mon = new Date(r.to + 'T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: '2-digit' });
+  saveBlob(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `Credit Card Recon ${mon} Statement (${fmtD(r.from)} to ${fmtD(r.to)}).xlsx`);
+}
+function saveBlob(blob, name){ const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
+async function downloadSheet(rows, sheet, name){
+  const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet(sheet);
+  const cols = rows.length ? Object.keys(rows[0]) : ['No data'];
+  ws.columns = cols.map(k => ({ header: k, key: k, width: Math.min(45, Math.max(10, k.length + 2, ...rows.map(r => String(r[k] ?? '').length + 1))) }));
+  rows.forEach(r => ws.addRow(r)); ws.getRow(1).font = { bold: true }; ws.views = [{ state: 'frozen', ySplit: 1 }];
+  saveBlob(new Blob([await wb.xlsx.writeBuffer()]), name);
+}
+
+/* =====================================================================
+   SETTINGS
+   ===================================================================== */
+function pageSettings(){
+  $('#page').innerHTML = `<div class="split">
+    <div class="card"><div class="card-h"><h3>ISPs & login method</h3><button class="btn sm primary" onclick="openIsp()">＋ Add ISP</button></div>
+      <div class="tbl-wrap"><table><thead><tr><th>ISP</th><th>Default login method</th><th>Portal / support</th><th class="num">Live</th><th></th></tr></thead><tbody>
+      ${S.isps.map(i => `<tr><td><b>${esc(i.name)}</b></td><td>${esc(LOGIN_METHODS[i.login_method] || i.login_method)}</td>
+        <td class="small">${i.portal_url ? `<a href="${esc(i.portal_url)}" target="_blank" rel="noopener">${esc(i.portal_url.replace(/^https?:\/\//,'').slice(0,30))}</a>` : ''}<div class="muted">${esc(i.support_phone||'')}</div></td>
+        <td class="num">${S.conns.filter(c => c.isp === i.name && c.status === 'active').length}</td>
+        <td><button class="btn sm" onclick="openIsp('${esc(i.name)}')">Edit</button></td></tr>`).join('')}</tbody></table></div></div>
+    <div class="card" style="align-self:start"><div class="card-h"><h3>Payment methods & recon tabs</h3><button class="btn sm primary" onclick="openMethod()">＋ Add</button></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Method</th><th>In recon?</th><th>Recon tab name</th><th></th></tr></thead><tbody>
+      ${S.methods.map(m => `<tr><td><b>${esc(m.name)}</b></td><td>${m.include_in_recon ? '<span class="badge b-ok">Yes</span>' : '<span class="badge b-grey">No</span>'}</td><td>${esc(m.recon_sheet_name||'')}</td>
+        <td><button class="btn sm" onclick="openMethod('${esc(m.name)}')">Edit</button></td></tr>`).join('')}</tbody></table></div>
+      <div class="card-b small muted">Tick “In recon” for the cards/accounts you reconcile (ICICI, HDFC, Manish Bank). The tab name is used in the downloaded Excel.</div>
+      <div class="card-b" style="border-top:1px solid var(--line)"><button class="btn" onclick="backupAll()">⬇ Download full backup (Excel)</button></div></div>
+  </div>`;
+}
+async function backupAll(){
+  const wb = new ExcelJS.Workbook();
+  const add = (name, rows) => { const ws = wb.addWorksheet(name); const cols = rows.length ? Object.keys(rows[0]) : ['empty'];
+    ws.columns = cols.map(k => ({ header: k, key: k, width: 18 })); rows.forEach(r => ws.addRow(Object.fromEntries(cols.map(k => [k, Array.isArray(r[k]) ? r[k].join(',') : r[k]])))); ws.getRow(1).font = { bold: true }; };
+  add('stores', S.stores); add('connections', S.conns.map(({today_ist, ...c}) => c)); add('payments', S.payments);
+  add('equipment', S.equipment); add('events', S.events); add('isps', S.isps); add('payment_methods', S.methods);
+  saveBlob(new Blob([await wb.xlsx.writeBuffer()]), `WiFi Manager backup ${todayISO()}.xlsx`);
+}
+
+/* =====================================================================
+   GENERIC MODAL FORM
+   ===================================================================== */
+function modal({ title, fields, values = {}, onSave, onDelete, saveLabel = 'Save', extraHtml = '', onMount }){
+  const v = k => values[k] ?? '';
+  const fieldHtml = f => {
+    if (f.section) return `<h4>${esc(f.section)}</h4>`;
+    const id = 'f_' + f.k; const cls = f.full ? 'full' : '';
+    let input;
+    if (f.type === 'select') input = `<select id="${id}" ${f.required?'required':''}>${f.blank !== false ? `<option value="">${esc(f.blank || '—')}</option>` : ''}${f.options.map(o => { const [val, lab] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(val)}" ${String(val) === String(v(f.k)) ? 'selected' : ''}>${esc(lab)}</option>`; }).join('')}</select>`;
+    else if (f.type === 'textarea') input = `<textarea id="${id}">${esc(v(f.k))}</textarea>`;
+    else if (f.type === 'checkbox') input = `<label style="display:flex;gap:8px;align-items:center;font-weight:500"><input type="checkbox" id="${id}" style="width:auto" ${v(f.k) ? 'checked' : ''}> ${esc(f.cbLabel || '')}</label>`;
+    else if (f.type === 'html') input = f.html;
+    else input = `<input id="${id}" type="${f.type || 'text'}" value="${esc(v(f.k))}" ${f.required?'required':''} ${f.step ? `step="${f.step}"` : ''} ${f.list ? `list="${id}_l"` : ''} autocomplete="off">${f.list ? `<datalist id="${id}_l">${f.list.map(o => `<option value="${esc(o)}">`).join('')}</datalist>` : ''}`;
+    return `<div class="${cls}">${f.type === 'checkbox' ? '' : `<label>${esc(f.label)}${f.required ? ' *' : ''}</label>`}${input}${f.hint ? `<div class="hint">${f.hint}</div>` : ''}</div>`;
+  };
+  $('#modalRoot').innerHTML = `<div class="modal-wrap"><form class="modal" id="mForm" novalidate>
+    <div class="modal-h"><h3>${esc(title)}</h3><button type="button" class="btn sm ghost" onclick="closeModal()">✕</button></div>
+    <div class="modal-b"><div class="form">${fields.map(fieldHtml).join('')}</div>${extraHtml}</div>
+    <div class="modal-f">${onDelete ? '<button type="button" class="btn danger" id="mDel" style="margin-right:auto">Delete</button>' : ''}
+      <button type="button" class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" type="submit" id="mSave">${esc(saveLabel)}</button></div>
+  </form></div>`;
+  const read = () => { const out = {}; fields.filter(f => f.k && f.type !== 'html').forEach(f => { const el = $('#f_' + f.k);
+    let val = f.type === 'checkbox' ? el.checked : el.value.trim();
+    if (f.type === 'number') val = val === '' ? null : Number(val);
+    else if (f.type !== 'checkbox' && val === '') val = null;
+    out[f.k] = val; }); return out; };
+  $('#mForm').onsubmit = async e => { e.preventDefault();
+    const data = read();
+    const miss = fields.find(f => f.required && (data[f.k] === null || data[f.k] === ''));
+    if (miss) return toast(miss.label + ' is required', true);
+    $('#mSave').disabled = true;
+    try { await onSave(data); closeModal(); } catch(err){ console.error(err); } finally { const b = $('#mSave'); if (b) b.disabled = false; } };
+  if (onDelete) $('#mDel').onclick = async () => { if (!confirm('Delete permanently?')) return; try { await onDelete(); closeModal(); } catch(e){} };
+  if (onMount) onMount();
+}
+function closeModal(){ $('#modalRoot').innerHTML = ''; }
+async function afterSave(){ await loadAll(); renderNav(); renderPage(); reopenDrawer(); }
+
+/* ---------------- store form ---------------- */
+function openStoreForm(id){
+  const s = id ? byId(S.stores, id) : { status: 'active' };
+  modal({ title: id ? 'Edit store' : 'Add store', values: s,
+    fields: [
+      { k: 'name', label: 'Store name', required: true, full: true, hint: 'e.g. “ZD FNP Koramangala” — brand & city auto-fill from the name' },
+      { k: 'brand', label: 'Brand', list: uniq([...S.stores.map(x => x.brand), ...Object.values(BRAND_MAP)]) },
+      { k: 'city', label: 'City', list: uniq([...S.stores.map(x => x.city), ...Object.values(CITY_MAP)]) },
+      { k: 'status', label: 'Store status', type: 'select', blank: false, options: Object.entries(STORE_STATUS).map(([k,v]) => [k, v[0]]) },
+      { k: 'registered_name', label: 'registered  name' }, { k: 'registered_phone', label: 'registered phone' }, { k: 'registered_email', label: 'registered email' },
+      { k: 'address', label: 'Address', type: 'textarea', full: true }, { k: 'notes', label: 'Notes', type: 'textarea', full: true }],
+    onMount: () => { $('#f_name').addEventListener('change', () => {
+      if (!$('#f_brand').value || !id) $('#f_brand').value = detectBrand($('#f_name').value);
+      if (!$('#f_city').value || !id) $('#f_city').value = detectCity($('#f_name').value) || $('#f_city').value; }); },
+    onSave: async d => { if (!d.brand) d.brand = detectBrand(d.name) || 'Zippee'; if (!d.city) d.city = detectCity(d.name) || null;
+      if (id) await dbWrite(sb.from('wifi_stores').update(d).eq('id', id), 'Store updated');
+      else await dbWrite(sb.from('wifi_stores').insert(d), 'Store added');
+      await afterSave(); },
+    onDelete: id ? async () => { await dbWrite(sb.from('wifi_stores').delete().eq('id', id), 'Store deleted'); closeDrawer(); await afterSave(); } : null
+  });
+}
+function openMerge(){
+  const opts = S.stores.map(s => [s.id, `${s.name} (${S.conns.filter(c => c.store_id === s.id).length} WiFi)`]);
+  modal({ title: 'Merge duplicate stores', saveLabel: 'Merge',
+    fields: [{ k: 'drop_id', label: 'Duplicate store (will be removed)', type: 'select', options: opts, required: true, full: true },
+             { k: 'keep_id', label: 'Keep this store (receives all WiFi & payments)', type: 'select', options: opts, required: true, full: true }],
+    onSave: async d => { if (d.keep_id === d.drop_id) { toast('Pick two different stores', true); throw new Error('same'); }
+      await dbWrite(sb.rpc('wifi_merge_stores', { keep_id: Number(d.keep_id), drop_id: Number(d.drop_id) }), 'Stores merged'); await afterSave(); } });
+}
+
+/* ---------------- connection form ---------------- */
+function openConnection(id, storeId){
+  const c = id ? byId(S.conns, id) : { store_id: storeId || (S.f.store ? Number(S.f.store) : ''), status: 'active', tenure_months: 1 };
+  modal({ title: id ? `Edit WiFi — ${c.store_name} · ${c.isp}` : 'Add WiFi connection', values: c,
+    fields: [
+      { section: 'Connection' },
+      { k: 'store_id', label: 'Store', type: 'select', required: true, options: S.stores.map(s => [s.id, s.name]) },
+      { k: 'isp', label: 'ISP', type: 'select', required: true, options: S.isps.map(i => i.name), hint: 'Missing? Add it in Settings → ISPs' },
+      { k: 'label', label: 'Label (optional)', list: ['Primary','Backup','Office','Leaseline'] },
+      { k: 'status', label: 'Status', type: 'select', blank: false, options: Object.entries(CONN_STATUS).map(([k,v]) => [k, v[0]]) },
+      { k: 'account_no', label: 'Account no. / DSL ID / Customer ID' },
+      { k: 'installed_on', label: 'Installed on', type: 'date' },
+      { section: 'Login credentials' },
+      { k: 'login_method', label: 'Login method', type: 'select', blank: 'Use ISP default', options: Object.entries(LOGIN_METHODS) },
+      { k: 'login_id', label: 'Login ID / Username' },
+      { k: 'login_password', label: 'Password', type: 'text' },
+      { k: 'registered_phone', label: 'Registered mobile number' },
+      { k: 'registered_name', label: 'Registered name' },
+      { k: 'registered_email', label: 'Registered email', type: 'email' },
+      { section: 'Plan & renewal' },
+      { k: 'plan_name', label: 'Plan name' }, { k: 'speed', label: 'Speed', list: ['40 Mbps','50 Mbps','100 Mbps','200 Mbps','300 Mbps'] },
+      { k: 'plan_amount', label: 'Plan amount (₹)', type: 'number', step: '0.01' },
+      { k: 'tenure_months', label: 'Renewal tenure (months)', type: 'number', hint: 'Used when a payment has no tenure. 1 = monthly, 3 = quarterly…' },
+      { k: 'next_due_override', label: 'Manual next due date (optional)', type: 'date', hint: 'Overrides the calculated date until the next payment is recorded' },
+      { k: 'bill_link', label: 'Bill link / file name' },
+      { k: 'address', label: 'Installation address (if different from store)', type: 'textarea', full: true },
+      { k: 'notes', label: 'Notes', type: 'textarea', full: true }],
+    onSave: async d => { d.store_id = Number(d.store_id);
+      if (id) await dbWrite(sb.from('wifi_connections').update(d).eq('id', id), 'WiFi updated');
+      else { const ins = await dbWrite(sb.from('wifi_connections').insert(d).select('id').single(), 'WiFi added');
+        await sb.from('wifi_equipment').insert({ connection_id: ins.id, item: 'Router', location: 'At store' }); }
+      await afterSave(); },
+    onDelete: id ? async () => { await dbWrite(sb.from('wifi_connections').delete().eq('id', id), 'WiFi deleted'); await afterSave(); } : null
+  });
+}
+
+/* ---------------- payment form ---------------- */
+function openPayment(id, connId){
+  const p = id ? byId(S.payments, id) : (() => { const c = byId(S.conns, connId) || {};
+    return { connection_id: connId || '', payment_date: todayISO(), amount: c.last_amount ?? c.plan_amount ?? '', tenure_months: c.effective_tenure || 1,
+      payment_type: 'Recharge', payment_method: c.last_method || '', covers_connection_ids: [] }; })();
+  const connOpts = S.conns.slice().sort((a,b) => (a.store_name||'').localeCompare(b.store_name||'')).map(c => [c.id, `${c.store_name} — ${c.isp}${c.account_no ? ' — ' + c.account_no : ''}${isLive(c) ? '' : ' (' + CONN_STATUS[c.status][0] + ')'}`]);
+  const covers = new Set(p.covers_connection_ids || []);
+  const extra = `<details style="margin-top:14px" ${covers.size ? 'open' : ''}><summary style="cursor:pointer;font-weight:600;font-size:13px">Bulk bill — this payment also covers other connections (${covers.size})</summary>
+    <div class="hint" style="margin:6px 0">For one Airtel Business / leaseline bill paying several stores. Each ticked connection gets its next due date from this payment.</div>
+    <input id="covQ" placeholder="Filter…" style="width:100%;border:1px solid #d0d5dd;border-radius:8px;padding:6px 10px;margin-bottom:6px">
+    <div class="checklist" id="covList">${connOpts.map(([cid, lab]) => `<label data-t="${esc(lab.toLowerCase())}"><input type="checkbox" value="${cid}" ${covers.has(cid) ? 'checked' : ''}> ${esc(lab)}</label>`).join('')}</div></details>`;
+  modal({ title: id ? 'Edit payment' : 'Record payment', values: p, extraHtml: extra,
+    fields: [
+      { k: 'connection_id', label: 'WiFi connection', type: 'select', options: connOpts, full: true, blank: '— Bulk / not linked to one connection —' },
+      { k: 'payment_date', label: 'Payment date', type: 'date', required: true },
+      { k: 'amount', label: 'Amount (₹)', type: 'number', step: '0.01', required: true },
+      { k: 'tenure_months', label: 'Tenure (months)', type: 'number', hint: 'Next due = payment date + tenure. Blank/0 for one-time.' },
+      { k: 'payment_type', label: 'Type', type: 'select', blank: false, options: PAYMENT_TYPES },
+      { k: 'payment_method', label: 'Payment method', type: 'select', required: true, options: S.methods.map(m => m.name) },
+      { k: 'brand', label: 'Entity for recon (optional)', list: uniq(S.stores.map(s => s.brand)), hint: 'Defaults to the store’s brand' },
+      { k: 'particulars', label: 'Recon particulars (optional)', full: true, hint: 'Defaults to “Store ISP Type”, e.g. “ZD FNP Hebbal Airtel Recharge”' },
+      { k: 'reference', label: 'Reference / txn no.' }, { k: 'remarks', label: 'Remarks' }],
+    onMount: () => {
+      $('#covQ').oninput = e => { const q = e.target.value.toLowerCase(); document.querySelectorAll('#covList label').forEach(l => l.style.display = l.dataset.t.includes(q) ? '' : 'none'); };
+      if (!id) $('#f_connection_id').onchange = e => { const c = byId(S.conns, Number(e.target.value)); if (!c) return;
+        if (!$('#f_amount').value && (c.last_amount || c.plan_amount)) $('#f_amount').value = c.last_amount || c.plan_amount;
+        if (c.effective_tenure) $('#f_tenure_months').value = c.effective_tenure;
+        if (c.last_method && !$('#f_payment_method').value) $('#f_payment_method').value = c.last_method; };
+    },
+    onSave: async d => {
+      d.connection_id = d.connection_id ? Number(d.connection_id) : null;
+      const c = byId(S.conns, d.connection_id);
+      d.store_id = c ? c.store_id : (id ? p.store_id : null);
+      d.covers_connection_ids = [...document.querySelectorAll('#covList input:checked')].map(x => Number(x.value)).filter(x => x !== d.connection_id);
+      if (!d.connection_id && !d.covers_connection_ids.length && !d.particulars) { toast('Pick a connection, tick bulk connections, or enter particulars', true); throw new Error('x'); }
+      if (id) await dbWrite(sb.from('wifi_payments').update(d).eq('id', id), 'Payment updated');
+      else await dbWrite(sb.from('wifi_payments').insert(d), 'Payment recorded');
+      await afterSave(); },
+    onDelete: id ? async () => { await dbWrite(sb.from('wifi_payments').delete().eq('id', id), 'Payment deleted'); await afterSave(); } : null
+  });
+}
+
+/* ---------------- disconnect / shift / reactivate ---------------- */
+function openStatusChange(connId, kind){
+  const c = byId(S.conns, connId);
+  const eq = S.equipment.filter(e => e.connection_id === connId);
+  const eqHtml = eq.length ? eq.map(e => `<div class="form" style="border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:8px" data-eq="${e.id}">
+      <div class="full"><b>${esc(e.item)}</b>${e.serial_no ? ' #' + esc(e.serial_no) : ''}</div>
+      <div><label>Where is it now?</label><select data-k="location">${EQUIP_LOCATIONS.map(l => `<option ${l===e.location?'selected':''}>${l}</option>`).join('')}</select></div>
+      <div><label>Held by (name)</label><input data-k="held_by" value="${esc(e.held_by||'')}"></div>
+      <div><label>Holder phone</label><input data-k="holder_phone" value="${esc(e.holder_phone||'')}"></div>
+      <div><label style="display:flex;gap:6px;align-items:center;margin-top:22px"><input type="checkbox" style="width:auto" data-k="recovered_by_isp" ${e.recovered_by_isp?'checked':''}> Collected by ISP team</label></div>
+    </div>`).join('') : '<div class="small muted">No equipment recorded for this connection — you can add it after saving.</div>';
+  const common = [{ k: 'event_date', label: 'Date', type: 'date', required: true }, { k: 'isp_ticket_no', label: 'ISP ticket / request no.' }];
+  let fields, title;
+  if (kind === 'disconnect'){
+    title = `Disconnect — ${c.store_name} · ${c.isp}`;
+    fields = [{ k: 'event_type', label: 'Stage', type: 'select', blank: false, options: [['disconnect_requested','Disconnection requested'],['disconnected','Disconnected (service stopped)']] }, ...common,
+      { k: 'notes', label: 'Reason / notes', type: 'textarea', full: true }];
+  } else if (kind === 'shift'){
+    title = `Shift — ${c.store_name} · ${c.isp}`;
+    fields = [{ k: 'event_type', label: 'Stage', type: 'select', blank: false, options: [['shift_requested','Shifting requested'],['shifted','Shifted (working at new place)']] }, ...common,
+      { k: 'to_store_id', label: 'Move to store', type: 'select', options: S.stores.filter(s => s.id !== c.store_id).map(s => [s.id, s.name]), blank: '— Same store / new address only —', full: true },
+      { k: 'to_address', label: 'New address', type: 'textarea', full: true }, { k: 'notes', label: 'Notes', type: 'textarea', full: true }];
+  } else {
+    title = `Reactivate — ${c.store_name} · ${c.isp}`;
+    fields = [...common, { k: 'notes', label: 'Notes', type: 'textarea', full: true }];
+  }
+  modal({ title, values: { event_date: todayISO(), event_type: kind === 'disconnect' ? (c.status === 'disconnect_requested' ? 'disconnected' : 'disconnect_requested') : kind === 'shift' ? (c.status === 'shift_requested' ? 'shifted' : 'shift_requested') : 'reconnected' },
+    fields, extraHtml: `<h4 style="margin:16px 0 0;font-size:13px;color:var(--brand)">📦 Router & accessories — where are they?</h4>${eqHtml}`,
+    onSave: async d => {
+      const type = d.event_type || 'reconnected';
+      const ev = { connection_id: connId, event_type: type, event_date: d.event_date, isp_ticket_no: d.isp_ticket_no, notes: d.notes,
+        from_store_id: c.store_id, to_store_id: d.to_store_id ? Number(d.to_store_id) : null, to_address: d.to_address || null, created_by: S.user?.email };
+      await dbWrite(sb.from('wifi_connection_events').insert(ev));
+      const upd = { status: { disconnect_requested: 'disconnect_requested', disconnected: 'disconnected', shift_requested: 'shift_requested', shifted: 'active', reconnected: 'active' }[type] };
+      if (type === 'shifted' && ev.to_store_id) upd.store_id = ev.to_store_id;
+      if (type === 'shifted' && ev.to_address) upd.address = ev.to_address;
+      await dbWrite(sb.from('wifi_connections').update(upd).eq('id', connId));
+      for (const box of document.querySelectorAll('[data-eq]')){
+        const e = { location: box.querySelector('[data-k=location]').value, held_by: box.querySelector('[data-k=held_by]').value || null,
+          holder_phone: box.querySelector('[data-k=holder_phone]').value || null, recovered_by_isp: box.querySelector('[data-k=recovered_by_isp]').checked };
+        if (e.recovered_by_isp){ const old = byId(S.equipment, Number(box.dataset.eq)); if (!old.recovered_by_isp) e.recovered_on = d.event_date; if (e.location !== 'Handed to ISP' && !old.recovered_by_isp) e.location = 'Handed to ISP'; }
+        await dbWrite(sb.from('wifi_equipment').update(e).eq('id', Number(box.dataset.eq)));
+      }
+      toast('Saved'); await afterSave(); }
+  });
+}
+
+/* ---------------- equipment form ---------------- */
+function openEquipment(id, connId){
+  const e = id ? byId(S.equipment, id) : { connection_id: connId || '', item: 'Router', location: 'At store' };
+  modal({ title: id ? 'Edit equipment' : 'Add equipment', values: e,
+    fields: [
+      { k: 'connection_id', label: 'WiFi connection', type: 'select', full: true, options: S.conns.map(c => [c.id, `${c.store_name} — ${c.isp}${c.account_no ? ' — ' + c.account_no : ''}`]) },
+      { k: 'item', label: 'Item', list: EQUIP_ITEMS, required: true }, { k: 'serial_no', label: 'Serial / MAC' },
+      { k: 'location', label: 'Current location', type: 'select', blank: false, options: EQUIP_LOCATIONS },
+      { k: 'held_by', label: 'Held by (name)' }, { k: 'holder_phone', label: 'Holder phone' },
+      { k: 'recovered_by_isp', type: 'checkbox', cbLabel: 'Collected by ISP recovery team' }, { k: 'recovered_on', label: 'Recovered on', type: 'date' },
+      { k: 'notes', label: 'Notes', type: 'textarea', full: true }],
+    onSave: async d => { d.connection_id = d.connection_id ? Number(d.connection_id) : null;
+      if (id) await dbWrite(sb.from('wifi_equipment').update(d).eq('id', id), 'Equipment updated');
+      else await dbWrite(sb.from('wifi_equipment').insert(d), 'Equipment added');
+      await afterSave(); },
+    onDelete: id ? async () => { await dbWrite(sb.from('wifi_equipment').delete().eq('id', id), 'Deleted'); await afterSave(); } : null
+  });
+}
+
+/* ---------------- settings forms ---------------- */
+function openIsp(name){
+  const i = name ? S.isps.find(x => x.name === name) : { login_method: 'userid_password' };
+  modal({ title: name ? 'Edit ISP' : 'Add ISP', values: i,
+    fields: [{ k: 'name', label: 'ISP name', required: true }, { k: 'login_method', label: 'Default login method', type: 'select', blank: false, options: Object.entries(LOGIN_METHODS) },
+      { k: 'portal_url', label: 'Self-care portal URL', full: true }, { k: 'support_phone', label: 'Support / sales contact' }, { k: 'notes', label: 'Notes', type: 'textarea', full: true }],
+    onSave: async d => { if (name) await dbWrite(sb.from('wifi_isps').update(d).eq('name', name), 'ISP updated'); else await dbWrite(sb.from('wifi_isps').insert(d), 'ISP added'); await afterSave(); },
+    onDelete: name ? async () => { await dbWrite(sb.from('wifi_isps').delete().eq('name', name), 'ISP deleted'); await afterSave(); } : null });
+}
+function openMethod(name){
+  const m = name ? S.methods.find(x => x.name === name) : { include_in_recon: true, sort_order: 10 };
+  modal({ title: name ? 'Edit payment method' : 'Add payment method', values: m,
+    fields: [{ k: 'name', label: 'Method name', required: true }, { k: 'recon_sheet_name', label: 'Recon tab name', hint: 'Max 31 characters' },
+      { k: 'include_in_recon', type: 'checkbox', cbLabel: 'Include in recon export by default' }, { k: 'sort_order', label: 'Sort order', type: 'number' }],
+    onSave: async d => { if (name) await dbWrite(sb.from('wifi_payment_methods').update(d).eq('name', name), 'Updated'); else await dbWrite(sb.from('wifi_payment_methods').insert(d), 'Added');
+      S.recon = null; await afterSave(); },
+    onDelete: name ? async () => { await dbWrite(sb.from('wifi_payment_methods').delete().eq('name', name), 'Deleted'); await afterSave(); } : null });
+}
+
+/* =====================================================================
+   AUTH & BOOT
+   ===================================================================== */
+async function boot(){
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session){ $('#login').classList.remove('hidden'); $('#app').classList.add('hidden'); return; }
+  S.user = session.user;
+  $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
+  $('#whoami').textContent = S.user.email;
+  await loadAll(); render();
+}
+$('#loginForm').onsubmit = async e => { e.preventDefault(); $('#loginErr').textContent = '';
+  const { error } = await sb.auth.signInWithPassword({ email: $('#loginEmail').value.trim(), password: $('#loginPass').value });
+  if (!error) return boot();
+  if (/fetch|network/i.test(error.message)){
+    const health = `${SB_URL}/auth/v1/health?apikey=${SB_KEY}`;
+    $('#loginErr').innerHTML = `Can't reach Supabase at <b>${esc(SB_URL)}</b>. This isn't a password problem.<br>
+      <a href="${esc(health)}" target="_blank" rel="noopener">Click here to test the connection</a>. If that page doesn't open, your network or ISP is blocking supabase.co.
+      Try mobile data, a VPN or DNS 1.1.1.1. If it shows text starting <code>{"version"</code>, check the URL in CONFIG.`;
+  } else $('#loginErr').textContent = error.message; };
+$('#logoutBtn').onclick = async () => { await sb.auth.signOut(); location.reload(); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape'){ if ($('#modalRoot').innerHTML) closeModal(); else closeDrawer(); } });
+if (SUPABASE_URL.includes('YOUR-PROJECT')) document.body.innerHTML = '<div style="padding:40px;font-family:sans-serif"><h2>Almost there</h2><p>Open <code>index.html</code> in a text editor and paste your Supabase URL and anon key into the CONFIG block near the bottom.</p></div>';
+else boot();
+
+</script>
+</body>
+</html>
 
